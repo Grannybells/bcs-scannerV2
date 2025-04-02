@@ -15,7 +15,18 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.grannybells.bcsmobile"
     },
     "web": {
       "bundler": "metro",
@@ -32,7 +43,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ], 
+      ],
       [
         "expo-location",
         {
@@ -50,6 +61,20 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "32d1e508-22e0-4488-b3ab-eb35e4c0a020"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/32d1e508-22e0-4488-b3ab-eb35e4c0a020"
     }
   }
 }

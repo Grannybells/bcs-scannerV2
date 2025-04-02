@@ -138,7 +138,7 @@ export default function Home() {
       try {
         const response = await axios.request(config);
         openCameraModal(response.data, data);
-        console.log(response.data);
+        console.log("This is response from qr scan",response.data);
       } catch (error) {
         console.log(error);
       }
@@ -154,19 +154,19 @@ export default function Home() {
             <Picker
               selectedValue={selectedRefNo}
               onValueChange={(itemValue) => setSelectedRefNo(itemValue)}
-              style={{ fontSize: 14 }}
+              style={{ fontSize: 15 }}
             >
               <Picker.Item
                 label="Select a schedule"
                 value={null}
-                style={{ fontSize: 14 }}
+                style={{ fontSize: 15 }}
               />
               {caucusSched.map((item) => (
                 <Picker.Item
                   key={item.refno}
                   label={`${item.purp} - ${formatDate(item.date.date)}`}
                   value={item.refno}
-                  style={{ fontSize: 14 }}
+                  style={{ fontSize: 15 }}
                 />
               ))}
             </Picker>
@@ -177,7 +177,7 @@ export default function Home() {
             style={styles.camera}
             facing={"back"}
             onBarcodeScanned={handleBarcodeScanned}
-            zoom={0}
+            zoom={0.3}
           >
             <View style={styles.overlay}>
               <View style={styles.frame} />
@@ -204,6 +204,7 @@ export default function Home() {
           <Text style={styles.buttonText}>Scan</Text>
         </TouchableOpacity>
       </View>
+      <Text style={styles.version}>Version 10.17.1</Text>
       <Modal
         animationType="slide"
         transparent={true}
@@ -346,5 +347,8 @@ const styles = StyleSheet.create({
     textAlignVertical: "center",
     color: "black",
     fontSize: 20,
-  },
+  },version:{
+    padding:5,
+    fontStyle:'italic'
+  }
 });

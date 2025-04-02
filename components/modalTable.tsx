@@ -60,6 +60,7 @@ export default function ModalTable({ onClose, refNo }: ModalTableProps) {
         if (storedData) {
           setDeviceData(JSON.parse(storedData));
         }
+
         console.log(storedData);
       } catch (error) {
         console.log("Error retrieving device data:", error);
@@ -68,6 +69,7 @@ export default function ModalTable({ onClose, refNo }: ModalTableProps) {
     fetchDeviceData();
   }, []);
 
+  console.log(`${deviceData?.data.deviceUniqueId}`)
   const getCurrentFormattedDate = (): string => {
     const today = new Date();
     return `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;

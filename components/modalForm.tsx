@@ -14,6 +14,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as FileSystem from "expo-file-system";
 import * as Application from "expo-application";
 import axios from "axios";
+import { formatDate } from "@/lib/dateTime";
 
 type QrDetails = {
   Status: number | null;
@@ -94,6 +95,7 @@ export default function ModalForm({
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>("");
 
   if (!permission) return <View />;
 
@@ -164,20 +166,21 @@ export default function ModalForm({
     let data = new FormData();
     data.append(
       "attendance",
-      `{"attendee":[{"attendeeStat":"${qrDetails[0]?.Status}","patawagRef":"${refNo}","scannedQR":"${qrScanned}","attendeeImg":"${deviceData?.data.deviceUniqueId}-${time}","assignedEncoder":"${deviceData?.data.deviceUniqueId}"}]}`
+      `{"attendee":[{"attendeeStat":"${qrDetails[0]?.Status}","refno":"${refNo}","scannedQR":"${qrScanned}","attendeeImg":"${deviceData?.data.deviceUniqueId}-${time}","assignedEncoder":"${deviceData?.data.deviceUniqueId}"}]}`
     );
-
+    console.log(
+      `{"attendee":[{"attendeeStat":"${qrDetails[0]?.Status}","refno":"${refNo}","scannedQR":"${qrScanned}","attendeeImg":"default","assignedEncoder":"${deviceData?.data.deviceUniqueId}"}]\n}`
+    );
     let config = {
       method: "post",
       maxBodyLength: Infinity,
-      url: "https://cleanfuel.com.ph/BCS2025/api/bcspatawagtrans.php",
+      url: "https://cleanfuel.com.ph/BCS2025/api/caucustrans.php",
       headers: {
         Authorization: "Basic QkNTUmVydHVybjpFbGVjdGlvbjIwMjU=",
         "Content-Type": "multipart/form-data",
       },
       data: data,
     };
-
     try {
       const response = await axios.request(config);
       console.log(JSON.stringify(response.data));
@@ -188,23 +191,69 @@ export default function ModalForm({
         response.data.Status === 1 &&
         response.data.Rems === "Wala sa patawag..."
       ) {
-        uploadImage(photoUri);
-        Alert.alert("Error", `Wala sa Patawag`, [
+        Alert.alert("Error", "Wala sa patawag", [
           {
-            text: "Done",
+            text: "OK",
+            onPress: openCameraModal,
+          },
+        ]);
+      } else if (
+        response.data.Status === 1 &&
+        response.data.Rems === "Invalid Qr Code..."
+      ) {
+        Alert.alert("Error", "Wala sa patawag", [
+          {
+            text: "OK",
+            onPress: openCameraModal,
+          },
+        ]);
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Attendee already Scan.."
+      ) {
+        Alert.alert(
+          "Success",
+          `Already scanned ${formatDate(response.data.DATE.date)}`,
+          [
+            {
+              text: "OK",
+              onPress: openCameraModal,
+            },
+          ]
+        );
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Error Filling Attendees"
+      ) {
+        Alert.alert("Error", "Wala sa patawag", [
+          {
+            text: "OK",
+            onPress: openCameraModal,
+          },
+        ]);
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Error Checking Attendee Details"
+      ) {
+        Alert.alert("Error", "Wala sa patawag", [
+          {
+            text: "OK",
+            onPress: openCameraModal,
+          },
+        ]);
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Failed to Saved attendee"
+      ) {
+        Alert.alert("Error", "Wala sa patawag", [
+          {
+            text: "OK",
             onPress: openCameraModal,
           },
         ]);
       }
-      Alert.alert("Error", `Wala sa Patawag`, [
-        {
-          text: "Done",
-          onPress: openCameraModal,
-        },
-      ]);
     } catch (error) {
       console.log(error);
-    } finally {
     }
   };
 
@@ -212,9 +261,11 @@ export default function ModalForm({
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePictureAsync();
       if (photo?.uri) {
+        setIsSubmitting(true);
         setCapturedPhoto(photo.uri);
         setTimeout(() => {
           handleSubmitCapture(photo.uri);
+          setIsSubmitting(false);
         }, 1500);
       } else {
         console.warn("Failed to capture image");
@@ -227,13 +278,15 @@ export default function ModalForm({
     let data = new FormData();
     data.append(
       "attendance",
-      `{"attendee":[{"attendeeStat":"${qrDetails[0]?.Status}","patawagRef":"${refNo}","scannedQR":"${qrScanned}","attendeeImg":"default","assignedEncoder":"${deviceData?.data.deviceUniqueId}"}]\n}`
+      `{"attendee":[{"attendeeStat":"${qrDetails[0]?.Status}","refno":"${refNo}","scannedQR":"${qrScanned}","attendeeImg":"default","assignedEncoder":"${deviceData?.data.deviceUniqueId}"}]\n}`
     );
-
+    console.log(
+      `{"attendee":[{"attendeeStat":"${qrDetails[0]?.Status}","refno":"${refNo}","scannedQR":"${qrScanned}","attendeeImg":"default","assignedEncoder":"${deviceData?.data.deviceUniqueId}"}]\n}`
+    );
     let config = {
       method: "post",
       maxBodyLength: Infinity,
-      url: "https://cleanfuel.com.ph/BCS2025/api/bcspatawagtrans.php",
+      url: "https://cleanfuel.com.ph/BCS2025/api/caucustrans.php",
       headers: {
         Authorization: "Basic QkNTUmVydHVybjpFbGVjdGlvbjIwMjU=",
         "Content-Type": "multipart/form-data",
@@ -246,30 +299,66 @@ export default function ModalForm({
     try {
       const response = await axios.request(config);
       console.log(JSON.stringify(response.data));
+
       if (response.data.Status === 1 && response.data.Rems === "Record Saved") {
+        openCameraModal();
         console.log("save is triggered");
       } else if (
         response.data.Status === 1 &&
         response.data.Rems === "Wala sa patawag..."
       ) {
-        Alert.alert("Error", `Wala sa Patawag`, [
+        openCameraModal();
+        Alert.alert("Error", "Wala sa Patawag", [
+          { text: "OK", onPress: openCameraModal },
+        ]);
+      } else if (
+        response.data.Status === 1 &&
+        response.data.Rems === "Invalid Qr Code..."
+      ) {
+        openCameraModal();
+        Alert.alert("Error", "Wala sa Patawag", [
+          { text: "OK", onPress: openCameraModal },
+        ]);
+        console.log("save is triggered");
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Attendee already Scan.."
+      ) {
+        Alert.alert(
+          "Success",
+          `Already scanned ${formatDate(response.data.DATE.date)}`,
+          [{ text: "OK", onPress: openCameraModal }]
+        );
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Error Filling Attendees"
+      ) {
+        Alert.alert("Error", "Wala sa Patawag", [
+          { text: "OK", onPress: openCameraModal },
+        ]);
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Error Checking Attendee Details"
+      ) {
+        Alert.alert("Error", "Wala sa Patawag", [
+          { text: "OK", onPress: openCameraModal },
+        ]);
+      } else if (
+        response.data.Status === 0 &&
+        response.data.Rems === "Failed to Saved attendee"
+      ) {
+        Alert.alert("Error", "Wala sa patawag", [
           {
-            text: "Done",
+            text: "OK",
             onPress: openCameraModal,
           },
         ]);
       }
-      Alert.alert("Error", `Wala sa Patawag`, [
-        {
-          text: "Done",
-          onPress: openCameraModal,
-        },
-      ]);
     } catch (error) {
       console.log(error);
     } finally {
       openCameraModal();
-      setIsSubmitting(true);
+      setIsSubmitting(false);
     }
   };
 
@@ -302,15 +391,27 @@ export default function ModalForm({
           />
         )}
         <View style={styles.buttonParentContainer}>
-          <TouchableOpacity style={styles.buttonContainer} onPress={handleCaptureAndSubmit}>
+          <TouchableOpacity
+            style={styles.buttonContainer}
+            onPress={handleCaptureAndSubmit}
+            disabled={isSubmitting}
+          >
             <Text style={styles.buttonText}>Capture</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.buttonContainer}  onPress={handleSubmitSave}>
+          <TouchableOpacity
+            style={styles.buttonContainer}
+            onPress={handleSubmitSave}
+            disabled={isSubmitting}
+          >
             <Text style={styles.buttonText}>Save</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.buttonContainerClose} onPress={openCameraModal}>
+        <TouchableOpacity
+          style={styles.buttonContainerClose}
+          onPress={openCameraModal}
+          disabled={isSubmitting}
+        >
           <Text style={styles.buttonTextClose}>Cancel</Text>
         </TouchableOpacity>
       </View>
@@ -350,18 +451,18 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 2,
     borderColor: "black",
-  }, 
-  buttonParentContainer:{
-    width:'100%',
-    height:'auto',
-    flexDirection:'row',
-    justifyContent:'center',
-    alignContent:"center",
-    gap:10,
+  },
+  buttonParentContainer: {
+    width: "100%",
+    height: "auto",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignContent: "center",
+    gap: 10,
   },
 
   buttonContainer: {
-    width: '48%',
+    width: "48%",
     height: 55,
     borderWidth: 3,
     borderColor: "black",
@@ -380,7 +481,7 @@ const styles = StyleSheet.create({
   },
 
   buttonContainerClose: {
-    width: '100%',
+    width: "100%",
     height: 55,
     borderWidth: 3,
     borderColor: "black",
@@ -388,7 +489,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     backgroundColor: "red",
   },
-  
+
   buttonTextClose: {
     width: "100%",
     height: "100%",
