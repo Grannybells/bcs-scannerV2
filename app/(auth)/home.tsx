@@ -4,98 +4,23 @@ import {
   Text,
   Button,
   TouchableOpacity,
-  Modal,
   Alert,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { useRouter } from "expo-router";
 import axios from "axios";
-import { Picker } from "@react-native-picker/picker";
-import { formatDate } from "@/lib/dateTime";
-import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
-import ModalForm from "@/components/modalForm";
-import ModalTable from "@/components/modalTable";
-
-type CaucusData = {
-  refno: string;
-  purp: string;
-  date: {
-    date: string;
-    timezone_type: number;
-    timezone: string;
-  };
-};
-
-type QrDetails = {
-  Status: number;
-  Rems: string;
-  Details: [
-    {
-      memid: string;
-      memprec: string;
-      memname: string;
-      mempos: string;
-      membrgy: string;
-      membd: {
-        date: string;
-        timezone_type: number;
-        timezone: string;
-      };
-      scand: string;
-    }
-  ];
-};
 
 export default function Home() {
-  const [caucusSched, setCaucusSched] = useState<CaucusData[]>([]);
-  const [selectedRefNo, setSelectedRefNo] = useState<string | null>(null);
-
-  useEffect(() => {
-    const caucusRequest = async () => {
-      let data = new FormData();
-      data.append("caucuspatawag", "");
-
-      let config = {
-        method: "post",
-        maxBodyLength: Infinity,
-        url: "https://cleanfuel.com.ph/BCS2025/api/caucuspatawag.php",
-        headers: {
-          Authorization: "Basic QkNTUmVydHVybjpFbGVjdGlvbjIwMjU=",
-          "Content-Type": "multipart/form-data",
-        },
-        data: data,
-      };
-      try {
-        const response = await axios.request(config);
-        if (response.data.Status === 1) {
-          setCaucusSched(response.data.Details);
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    caucusRequest();
-  }, []);
-
+  const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [scannedQr, setScannedQr] = useState<string>("");
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [modalAttendee, setModalAttendee] = useState<boolean>(false);
-  const [isSwitchingCamera, setIsSwitchingCamera] = useState<boolean>(false);
-  const [qrDetails, setQrDetails] = useState<QrDetails[]>([]);
-  const [isScanRequested, setIsScanRequested] = useState<boolean>(false);
-
-  const openCameraModal = (details: QrDetails, scannedData: string) => {
-    setIsSwitchingCamera(true);
-    setQrDetails([details]);
-    setScannedQr(scannedData);
-
-    setTimeout(() => {
-      setModalVisible(true);
-      setScanned(false);
-      setIsSwitchingCamera(false);
-    }, 1000);
-  };
+  const [isScanRequested, setIsScanRequested] = useState(false);
+  const [parsedData, setParsedData] = useState<{
+    bsBarangay: string;
+    bsCluster: string;
+  } | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   if (!permission) {
     return <View />;
@@ -114,33 +39,60 @@ export default function Home() {
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     if (!scanned && isScanRequested) {
-      if (!selectedRefNo) {
-        Alert.alert("Error", "Please select a schedule before scanning.");
-        setIsScanRequested(false);
-        return;
-      }
       setScanned(true);
       setIsScanRequested(false);
-      let formData = new FormData();
-      formData.append("bcsmembno", data);
-
-      let config = {
-        method: "post",
-        maxBodyLength: Infinity,
-        url: "https://cleanfuel.com.ph/BCS2025/api/bcsmemberatten.php",
-        headers: {
-          Authorization: "Basic QkNTUmVydHVybjpFbGVjdGlvbjIwMjU=",
-          "Content-Type": "multipart/form-data",
-        },
-        data: formData,
-      };
 
       try {
-        const response = await axios.request(config);
-        openCameraModal(response.data, data);
-        console.log("This is response from qr scan",response.data);
+        const parsedData = JSON.parse(data);
+
+        if (
+          typeof parsedData.bsBarangay === "string" &&
+          typeof parsedData.bsCluster === "string"
+        ) {
+          let payload = new FormData();
+          payload.append("cpCluster", `${parsedData.bsCluster}`);
+          payload.append("cpBarangay", `${parsedData.bsBarangay}`);
+
+          let config = {
+            method: "post",
+            maxBodyLength: Infinity,
+            url: "https://cleanfuel.com.ph/BCS2025/api/brgyCluster.php",
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+            data: payload,
+          };
+          setLoading(true);
+          try {
+            const response = await axios.request(config);
+            console.log(JSON.stringify(response.data));
+            if (
+              response.data.status === "1" &&
+              response.data.rems === "Success"
+            ) {
+              const DataFetch = response.data.Details[0];
+              router.replace({
+                pathname: "/(auth)/resultScreen",
+                params: { scannedData: JSON.stringify(DataFetch) },
+              });
+            }
+          } catch (error) {
+            console.log(error);
+            Alert.alert("Server error", "Something happen, please try again", [
+              { text: "OK", onPress: () => {} },
+            ]);
+          } finally {
+            setLoading(false);
+          }
+        } else {
+          throw new Error("Invalid structure");
+        }
       } catch (error) {
-        console.log(error);
+        Alert.alert(
+          "Invalid QR Code",
+          "The scanned data is not valid. Please scan a correct QR code.",
+          [{ text: "OK", onPress: () => setScanned(false) }]
+        );
       }
     }
   };
@@ -148,101 +100,30 @@ export default function Home() {
   return (
     <View style={styles.container}>
       <View style={styles.cameraContainer}>
-        <View style={styles.pickerContainer}>
-          <Text style={styles.pickerText}>Barangay Schedule</Text>
-          <View style={styles.pickerViewer}>
-            <Picker
-              selectedValue={selectedRefNo}
-              onValueChange={(itemValue) => setSelectedRefNo(itemValue)}
-              style={{ fontSize: 15 }}
-            >
-              <Picker.Item
-                label="Select a schedule"
-                value={null}
-                style={{ fontSize: 15 }}
-              />
-              {caucusSched.map((item) => (
-                <Picker.Item
-                  key={item.refno}
-                  label={`${item.purp} - ${formatDate(item.date.date)}`}
-                  value={item.refno}
-                  style={{ fontSize: 15 }}
-                />
-              ))}
-            </Picker>
+        <CameraView
+          style={styles.camera}
+          facing="back"
+          onBarcodeScanned={handleBarcodeScanned}
+          zoom={0.1}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.frame} />
           </View>
-        </View>
-        {!modalVisible && !isSwitchingCamera ? (
-          <CameraView
-            style={styles.camera}
-            facing={"back"}
-            onBarcodeScanned={handleBarcodeScanned}
-            zoom={0.3}
-          >
-            <View style={styles.overlay}>
-              <View style={styles.frame} />
-            </View>
-          </CameraView>
-        ) : (
-          <View style={styles.camera}>
-            <View style={styles.overlay}>
-              <View style={styles.frame} />
-            </View>
-          </View>
-        )}
+        </CameraView>
 
         <TouchableOpacity
-          style={styles.buttonContainerAttendee}
-          onPress={() => setModalAttendee(true)}
-        >
-          <Text style={styles.buttonTextAttendee}>Attendees</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={styles.buttonContainer}
-          onPress={() => setIsScanRequested(true)}
+          onPress={() => {
+            setScanned(false); // reset for rescan
+            setIsScanRequested(true);
+          }}
         >
-          <Text style={styles.buttonText}>Scan</Text>
+          <Text style={styles.buttonText}>
+            {loading ? "Loading..." : "Scan"}
+          </Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.version}>Version 10.17.1</Text>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(!modalVisible);
-          setIsSwitchingCamera(false);
-          setScanned(false);
-        }}
-      >
-        <ModalForm
-          onClose={() => {
-            setModalVisible(false);
-            setIsSwitchingCamera(false);
-            setScanned(false);
-          }}
-          qrDetails={qrDetails}
-          qrScanned={scannedQr}
-          refNo={selectedRefNo}
-        />
-      </Modal>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalAttendee}
-        onRequestClose={() => {
-          setModalAttendee(!modalAttendee);
-          setIsScanRequested(false);
-        }}
-      >
-        <ModalTable
-          onClose={() => {
-            setModalAttendee(false);
-            setIsScanRequested(false);
-          }}
-          refNo={selectedRefNo}
-        />
-      </Modal>
     </View>
   );
 }
@@ -330,25 +211,8 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 20,
   },
-  buttonContainerAttendee: {
-    width: 325,
-    height: 55,
-    borderWidth: 3,
-    borderColor: "black",
-    marginTop: 10,
-    borderRadius: 15,
-    backgroundColor: "white",
+  version: {
+    padding: 5,
+    fontStyle: "italic",
   },
-  buttonTextAttendee: {
-    width: "100%",
-    height: "100%",
-    textAlign: "center",
-    fontWeight:800,
-    textAlignVertical: "center",
-    color: "black",
-    fontSize: 20,
-  },version:{
-    padding:5,
-    fontStyle:'italic'
-  }
 });

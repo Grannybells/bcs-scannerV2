@@ -2,8 +2,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Slot } from "expo-router";
 import { useRouter } from "expo-router";
+import React from "react";
 import { useEffect, useState } from "react";
-import { Alert, AppState, Linking, BackHandler } from "react-native";
+import { Alert, AppState, Linking, BackHandler, InteractionManager } from "react-native";
 
 export default function RootLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -111,11 +112,13 @@ export default function RootLayout() {
   }, [latestVersion]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/(auth)/home");
-    } else {
-      router.replace("/");
-    }
+    InteractionManager.runAfterInteractions(() => {
+      if (isAuthenticated) {
+        router.replace("/(auth)/home");
+      } else {
+        router.replace("/");
+      }
+    });
   }, [isAuthenticated, router]);
 
   return <Slot />;

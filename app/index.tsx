@@ -51,7 +51,6 @@ export default function Index() {
 
   const handleRegister = async () => {
     if (!deviceId) return;
-    const FormData = require("form-data");
     let data = new FormData();
     data.append("action", "register");
     data.append("deviceManufacturer", `${Device.manufacturer}`);
@@ -70,7 +69,7 @@ export default function Index() {
 
     try {
       const response = await axios.request(config);
-      console.log(response);
+      console.log("This is index",response);
       if (response.data.status === "success") {
         Alert.alert(
           "Success",
@@ -83,7 +82,7 @@ export default function Index() {
         ]);
       }
     } catch (error) {
-      console.log(error);
+      console.log("This is index error",error);
     }
   };
 
@@ -91,8 +90,6 @@ export default function Index() {
     if (loading) return;
     if (!deviceId || !location) return;
     setLoading(true);
-
-    const FormData = require("form-data");
     let data = new FormData();
     data.append("action", "login");
     data.append("deviceUniqueId", deviceId);
@@ -136,7 +133,7 @@ export default function Index() {
         );
       }
     } catch (error) {
-      console.log(error);
+      console.log("This is index error",error);
     } finally {
       setLoading(false);
     }
