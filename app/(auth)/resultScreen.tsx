@@ -72,8 +72,7 @@ export default function ResultScreen() {
   const [loading, setLoading] = useState<boolean>(false);
   const [errorInputs, setErrorInputs] = useState<{ [key: string]: boolean }>(
     {}
-  );
-  const [ballotsCast, setBallotsCast] = useState<string>("");
+  );const [ballotsCast, setBallotsCast] = useState<string>("");
 
   useEffect(() => {
     if (scannedData) {
@@ -205,6 +204,11 @@ export default function ResultScreen() {
   }, [existingData, parsedData, deviceData]);
 
   const prepareAndPreviewVote = () => {
+    if (!ballotsCast.trim()) {
+      Alert.alert("Error", "Missing ballots cast, please add ballot cast.");
+      return;
+    }
+    
     const allCandidates = [...congressmanData, ...councillorData];
 
     const missingVotes = allCandidates.some((candidate) => {
@@ -288,16 +292,9 @@ export default function ResultScreen() {
   };
 
   const handleSubmitVote = async () => {
-    if (!preparedEntries.length) return;
+    console.log("ballotsCast is:", ballotsCast);
 
-    if (!ballotsCast) {
-      Alert.alert(
-        "Error",
-        "Missing ballot cast, please add ballot cast.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
+    if (!preparedEntries.length) return;
 
     setLoading(true);
     const FormData = require("form-data");
@@ -386,9 +383,10 @@ export default function ResultScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.inputCastBox}
-              keyboardType="number-pad"
+              keyboardType="numeric"
               value={ballotsCast}
               onChangeText={setBallotsCast}
+              placeholder="Enter Ballots Cast"
             />
           </View>
         </View>

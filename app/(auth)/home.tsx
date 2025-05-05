@@ -5,6 +5,7 @@ import {
   Button,
   TouchableOpacity,
   Alert,
+  TextInput,
 } from "react-native";
 import React, { useState } from "react";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -21,6 +22,8 @@ export default function Home() {
     bsCluster: string;
   } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [clusterCode, setClusterCode] = useState<string>("");
+  const [loadingInput, setLoadingInput] = useState<boolean>(false);
 
   if (!permission) {
     return <View />;
@@ -37,53 +40,49 @@ export default function Home() {
     );
   }
 
+  const processClusterCode = async (clusterCode: string) => {
+    let payload = new FormData();
+    payload.append("cpCluster", clusterCode);
+
+    let config = {
+      method: "post",
+      maxBodyLength: Infinity,
+      url: "https://cleanfuel.com.ph/BCS2025/api/brgyCluster.php",
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      data: payload,
+    };
+
+    setLoading(true);
+    try {
+      const response = await axios.request(config);
+      if (response.data.status === "1" && response.data.rems === "Success") {
+        const DataFetch = response.data.Details[0];
+        router.replace({
+          pathname: "/(auth)/resultScreen",
+          params: { scannedData: JSON.stringify(DataFetch) },
+        });
+      } else {
+        Alert.alert("Invalid cluster", "Please enter a valid cluster code.");
+      }
+    } catch (error) {
+      console.log(error);
+      Alert.alert("Server error", "Something happened, please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     if (!scanned && isScanRequested) {
       setScanned(true);
       setIsScanRequested(false);
 
       try {
-        const parsedData = JSON.parse(data);
-
-        if (
-          typeof parsedData.bsBarangay === "string" &&
-          typeof parsedData.bsCluster === "string"
-        ) {
-          let payload = new FormData();
-          payload.append("cpCluster", `${parsedData.bsCluster}`);
-          payload.append("cpBarangay", `${parsedData.bsBarangay}`);
-
-          let config = {
-            method: "post",
-            maxBodyLength: Infinity,
-            url: "https://cleanfuel.com.ph/BCS2025/api/brgyCluster.php",
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-            data: payload,
-          };
-          setLoading(true);
-          try {
-            const response = await axios.request(config);
-            console.log(JSON.stringify(response.data));
-            if (
-              response.data.status === "1" &&
-              response.data.rems === "Success"
-            ) {
-              const DataFetch = response.data.Details[0];
-              router.replace({
-                pathname: "/(auth)/resultScreen",
-                params: { scannedData: JSON.stringify(DataFetch) },
-              });
-            }
-          } catch (error) {
-            console.log(error);
-            Alert.alert("Server error", "Something happen, please try again", [
-              { text: "OK", onPress: () => {} },
-            ]);
-          } finally {
-            setLoading(false);
-          }
+        const parsed = JSON.parse(data);
+        if (typeof parsed.bsCluster === "string") {
+          await processClusterCode(parsed.bsCluster);
         } else {
           throw new Error("Invalid structure");
         }
@@ -111,15 +110,37 @@ export default function Home() {
           </View>
         </CameraView>
 
+        <TextInput
+          keyboardType="number-pad"
+          placeholder="Enter Cluster code"
+          value={clusterCode}
+          onChangeText={setClusterCode}
+          style={{
+            marginTop: 20,
+            borderWidth: 3,
+            backgroundColor: "white",
+            padding: 10,
+            width: 325,
+            height: "auto",
+            fontSize: 16,
+            borderRadius: 10,
+          }}
+        />
         <TouchableOpacity
           style={styles.buttonContainer}
-          onPress={() => {
-            setScanned(false); // reset for rescan
-            setIsScanRequested(true);
+          onPress={async () => {
+            if (clusterCode.trim()) {
+              // If manual input is filled, use that
+              await processClusterCode(clusterCode.trim());
+            } else {
+              // Otherwise, trigger scan
+              setScanned(false); // Reset scanned flag
+              setIsScanRequested(true);
+            }
           }}
         >
           <Text style={styles.buttonText}>
-            {loading ? "Loading..." : "Scan"}
+            {loading ? "Loading..." : "Submit or Scan"}
           </Text>
         </TouchableOpacity>
       </View>
